@@ -6,3 +6,6 @@ I am a first year PhD student in Biomedical Engineering at Purdue University.
 My focus is in neural engineering and I aim to develop sensory prosthetics that
 mimic how natural sensation is integrated in the brain as well as have the
 capability to replace lost senses.
+
+Contact Information:
+Email: ssenneka@purdue.edu
