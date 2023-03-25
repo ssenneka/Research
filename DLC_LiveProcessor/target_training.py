@@ -252,8 +252,8 @@ class training(Processor):
     def save(self, filename):
 
         ### save stim on and stim off times
-        self.zero.write(b'O')
-        self.leo.write(b'L')
+        self.led_board_off()
+        self.reward_off()
         self.close_serial()
         filename += ".npy"
         trial_num = np.array(self.trial_num)
