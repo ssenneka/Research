@@ -96,32 +96,32 @@ class training(Processor):
         print("Setup Complete.")
         
         
-    def close_serial(self):
+    def close_serial(self):                                                    #Closes all serial connections
         self.leo.close()
         self.zero.close()
        
         
-    def reward_on(self):
+    def reward_on(self):                                                       #Turns on led reward port
         self.leo.reset_input_buffer()
         self.leo.write(b"H")
   
         
-    def reward_off(self):
+    def reward_off(self):                                                      #Turns off reward port led and reward availability
         self.leo.reset_input_buffer()
         self.leo.write(b"L")
     
     
-    def target_led_on(self, target):
+    def target_led_on(self, target):                                           #Turns on the desired area of LED board underneath cage floor
         self.zero.reset_input_buffer()
         self.zero.write(target)
     
     
-    def led_board_off(self):
+    def led_board_off(self):                                                   #Turns off LED board
         self.zero.reset_input_buffer()
         self.zero.write(b'O')
     
 
-    def distance(self,p1,p2):
+    def distance(self,p1,p2):                                                  #Calculates disatnce between two points
         x_dist = p1[0]-p2[0]
         y_dist = p1[1]-p2[1]
         dist = math.sqrt((x_dist)**2+(y_dist)**2)
@@ -129,7 +129,7 @@ class training(Processor):
         return distances
  
     
-    def play_sound(self, angle, dist):
+    def play_sound(self, angle, dist):                                         #Takes angle and distance and creates and plays the desired sound for each channel
         bits = 16
         duration = .1
         sample_rate = 44100
@@ -159,25 +159,16 @@ class training(Processor):
         self.last_tone = time.time()
    
 
-    def process(self, pose, **kwargs):
-    #Pose indices      
-        #0 - Nose
-        #1 - Head Center
-        #2 - Right Ear
-        #3 - Left Ear
-        #4 - Right Hip
-        #5 - Left Hip
-        #6 - Tail Base            
-
-        if self.waiting == True:
-            print("Waiting For user to press record")
-            self.waiting = False            
-        if kwargs['record']:
-            ##
-            if self.trial_init:
-                self.curr_targ = random.choice(self.target_list)
-                self.targets.append(self.curr_targ[0])
-                print("Target: ",self.curr_targ)
+    def process(self, pose, **kwargs):                                         #main process function. Contains 4 phases of training:
+        if self.waiting == True:                                               #1) trial initiation, 2) trial in progress, 3)trial success and 4)trial failure phases
+            print("Waiting For user to press record")                          #Pose indices
+            self.waiting = False                                                   #0 - Nose
+        if kwargs['record']:                                                       #1 - Head Center
+            ##Trial Initiation Phase                                              #2 - Right Ear
+            if self.trial_init:                                                    #3 - Left Ear
+                self.curr_targ = random.choice(self.target_list)                   #4 - Right Hip
+                self.targets.append(self.curr_targ[0])                             #5 - Left Hip
+                print("Target: ",self.curr_targ)                                   #6 - Tail Base
                 self.target_led_on(self.curr_targ[1])
                 self.trial_init = False
                 self.trial_ip = True
@@ -185,7 +176,7 @@ class training(Processor):
                 self.fail = False
                 self.trial_start.append(time.time())
             ##This section of code is outside of any if statements because 
-            ##these values are needed for all trial phases    
+            ##these values are needed for the following trial phases 
             self.pos.append(pose)
             nt_dists = self.distance(pose[0],self.curr_targ[0])
             ht_dists = self.distance(pose[1],self.curr_targ[0])
@@ -195,7 +186,8 @@ class training(Processor):
             pi_angle = math.acos((ht_dists[2]**2+nh_dist**2-nt_dists[2]**2)/(2*ht_dists[2]*nh_dist))
             deg_angle = pi_angle *(180.0 / math.pi)      
             print('position', pose[1])            
-            print('distance:', ht_dists[2])                
+            print('distance:', ht_dists[2])
+            ##Trial in progress phase               
             if self.trial_ip:      
                 if ((time.time()-self.last_tone) >= .099):
                     self.play_sound(deg_angle, ht_dists[2])
@@ -208,12 +200,14 @@ class training(Processor):
                     self.reward_on()
                     self.reward_tone.play(loops = 0)
                 if (time.time()-self.trial_start[len(self.trial_start)-1] >= 30) and self.success == False:
-                    self.fail = True                    
+                    self.fail = True 
+            ##Trial success phase
             if self.success:
                 if time.time() - self.trial_end[len(self.trial_end) - 1] <= 20:
                     byte = self.leo.readline()
                     print(byte)
                     if byte == b'P':
+                        npt = time.time()
                         self.trial_init = True
                         self.nosepokes += 1
                         self.success = False
@@ -221,7 +215,7 @@ class training(Processor):
                         self.successes += 1
                         print("Trials Completed: ", self.trial_num)
                         print("Successes: ", self.successes)
-                        time.sleep(5)
+                        time.sleep(20.1-(self.trial_end[len(self.trial_end)-1]-npt))
                 if time.time() - self.trial_end[len(self.trial_end)-1] > 20:
                     self.trial_init = True
                     self.success = False
