@@ -8,4 +8,5 @@ mimic how natural sensation is integrated in the brain as well as have the
 capability to replace lost senses.
 
 Contact Information:
+
 Email: ssenneka@purdue.edu
