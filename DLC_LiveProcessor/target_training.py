@@ -31,7 +31,9 @@ class training(Processor):
     def __init__(self, baudrate = int(9600)):  
         super().__init__()
         ##
-        self.curr_targ = []                                                    #current target for mouse to reach for give trial
+        self.curr_targ = []      
+        self.dropout = [True, False, False, False, False]                      #current target for mouse to reach for give trial
+        self.dropout_trials = []
         self.fail = False                                                      #trial ended in failure if true
         self.last_tone = time.time()                                           #last time a sound was played
         self.leo = serial.Serial('COM9', baudrate, timeout = 0)                #Serial connection to Arduino Leonardo        
@@ -166,10 +168,16 @@ class training(Processor):
         if kwargs['record']:                                                       #1 - Head Center
             ##Trial Initiation Phase                                              #2 - Right Ear
             if self.trial_init:                                                    #3 - Left Ear
+                dropout = random.choice(self.dropout)
+                
                 self.curr_targ = random.choice(self.target_list)                   #4 - Right Hip
                 self.targets.append(self.curr_targ[0])                             #5 - Left Hip
                 print("Target: ",self.curr_targ)                                   #6 - Tail Base
-                self.target_led_on(self.curr_targ[1])
+                if ~dropout:
+                    self.target_led_on(self.curr_targ[1])
+                if dropout:
+                    self.led_board_off()
+                    self.dropout_trials.append(self.trial_num + 1)
                 self.trial_init = False
                 self.trial_ip = True
                 self.success = False
@@ -256,10 +264,13 @@ class training(Processor):
         nosepokes = np.array(self.nosepokes)
         trial_start = np.array(self.trial_start)
         trial_end = np.array(self.trial_end)
+        dropout_trials = np.array(self.dropout_trials)
         pos = self.pos
         try:
             np.savez(
-                filename, pos = pos, trial_num = trial_num, successes  = successes, targets = targets, nosepokes=nosepokes, trial_start = trial_start, trial_end = trial_end)
+                filename, pos = pos, trial_num = trial_num, successes  = successes,
+                targets = targets, nosepokes=nosepokes, trial_start = trial_start,
+                trial_end = trial_end, dropout_trials = dropout_trials)
             save_code = True
         except Exception:
             save_code = False
