@@ -34,6 +34,7 @@ class training(Processor):
         self.curr_targ = []      
         self.dropout = [True, False, False, False, False]                      #current target for mouse to reach for give trial
         self.dropout_trials = []
+        self.drop = False
         self.fail = False                                                      #trial ended in failure if true
         self.last_tone = time.time()                                           #last time a sound was played
         self.leo = serial.Serial('COM9', baudrate, timeout = 0)                #Serial connection to Arduino Leonardo        
@@ -168,16 +169,14 @@ class training(Processor):
         if kwargs['record']:                                                       #1 - Head Center
             ##Trial Initiation Phase                                              #2 - Right Ear
             if self.trial_init:                                                    #3 - Left Ear
-                dropout = random.choice(self.dropout)
-                
+                self.drop = random.choice(self.dropout)            
                 self.curr_targ = random.choice(self.target_list)                   #4 - Right Hip
                 self.targets.append(self.curr_targ[0])                             #5 - Left Hip
                 print("Target: ",self.curr_targ)                                   #6 - Tail Base
-                if ~dropout:
+                if not self.drop:
                     self.target_led_on(self.curr_targ[1])
-                if dropout:
+                if self.drop:
                     self.led_board_off()
-                    self.dropout_trials.append(self.trial_num + 1)
                 self.trial_init = False
                 self.trial_ip = True
                 self.success = False
@@ -185,7 +184,7 @@ class training(Processor):
                 self.trial_start.append(time.time())
             ##This section of code is outside of any if statements because 
             ##these values are needed for the following trial phases 
-            self.pos.append(pose)
+            self.pos.append(pose, time.time())
             nt_dists = self.distance(pose[0],self.curr_targ[0])
             ht_dists = self.distance(pose[1],self.curr_targ[0])
             nh_dist = self.distance(pose[0],pose[1])[2]
@@ -209,9 +208,13 @@ class training(Processor):
                     self.reward_tone.play(loops = 0)
                 if (time.time()-self.trial_start[len(self.trial_start)-1] >= 30) and self.success == False:
                     self.fail = True 
+                    self.trial_end.append(time.time())
+                    
             ##Trial success phase
             if self.success:
-                if time.time() - self.trial_end[len(self.trial_end) - 1] <= 20:
+                if time.time() - self.trial_end[len(self.trial_end) - 1] <= 20:   
+                    if self.drop:
+                        self.dropout_trials.append(trial_num + 1, 1)
                     byte = self.leo.readline()
                     print(byte)
                     if byte == b'P':
@@ -234,11 +237,13 @@ class training(Processor):
                     print("Successes: ", self.successes)
                     time.sleep(5)                                
             if self.fail:
+                if self.drop:
+                    self.dropout_trials.append(trial_num+1, 0)
                 self.reward_off()
                 self.led_board_off()
                 self.trial_init = True
-                print('Trials Completed:', self.trial_num)
                 self.trial_num += 1
+                print('Trials Completed:', self.trial_num)
                 print("Successes: ", self.successes)
                 time.sleep(5)
 
