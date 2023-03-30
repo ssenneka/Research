@@ -40,13 +40,14 @@ class training(Processor):
         self.leo = serial.Serial('COM9', baudrate, timeout = 0)                #Serial connection to Arduino Leonardo        
         self.nosepokes = 0                                                     #number of times reward was collected by nosepoking reward port
         self.pos = []                                                          #pose coordinates to save
+        self.postime = []
         self.success = False                                                   #trial ended in success if true
         self.successes = 0                                                     #number of successful trials     
         self.targets = []                                                      #list of targets for each trial during session
         self.trial_end = []                                                    #End times of each trial
         self.trial_init = True                                                 #trial is being initiated if true
         self.trial_ip = False                                                  #trial is in progress if true
-        self.trial_num = 1                                                     #Current trial number as well as total number of trials at the end
+        self.trial_num = 0                                                     #Current trial number as well as total number of trials at the end
         self.trial_start = []                                                  #Start times of each trial
         self.waiting = True                                                    #Waiting for recording to start if True
         self.zero = serial.Serial('COM11', baudrate, timeout = 0)              #Serial connection to Arduino Zero
@@ -184,7 +185,8 @@ class training(Processor):
                 self.trial_start.append(time.time())
             ##This section of code is outside of any if statements because 
             ##these values are needed for the following trial phases 
-            self.pos.append(pose, time.time())
+            self.pos.append(pose)
+            self.postime.append([pose[0],time.time()])
             nt_dists = self.distance(pose[0],self.curr_targ[0])
             ht_dists = self.distance(pose[1],self.curr_targ[0])
             nh_dist = self.distance(pose[0],pose[1])[2]
@@ -214,7 +216,7 @@ class training(Processor):
             if self.success:
                 if time.time() - self.trial_end[len(self.trial_end) - 1] <= 20:   
                     if self.drop:
-                        self.dropout_trials.append(trial_num + 1, 1)
+                        self.dropout_trials.append([self.trial_num + 1, 1])
                     byte = self.leo.readline()
                     print(byte)
                     if byte == b'P':
@@ -226,7 +228,7 @@ class training(Processor):
                         self.successes += 1
                         print("Trials Completed: ", self.trial_num)
                         print("Successes: ", self.successes)
-                        time.sleep(20.1-(self.trial_end[len(self.trial_end)-1]-npt))
+                        time.sleep(5)
                 if time.time() - self.trial_end[len(self.trial_end)-1] > 20:
                     self.trial_init = True
                     self.success = False
@@ -238,7 +240,7 @@ class training(Processor):
                     time.sleep(5)                                
             if self.fail:
                 if self.drop:
-                    self.dropout_trials.append(trial_num+1, 0)
+                    self.dropout_trials.append([self.trial_num+1, 0])
                 self.reward_off()
                 self.led_board_off()
                 self.trial_init = True
@@ -269,13 +271,14 @@ class training(Processor):
         nosepokes = np.array(self.nosepokes)
         trial_start = np.array(self.trial_start)
         trial_end = np.array(self.trial_end)
-        dropout_trials = np.array(self.dropout_trials)
+        dropout_trials = np.array(self.dropout_trials, dtype = 'object')
         pos = self.pos
+        postime = self.postime
         try:
             np.savez(
                 filename, pos = pos, trial_num = trial_num, successes  = successes,
                 targets = targets, nosepokes=nosepokes, trial_start = trial_start,
-                trial_end = trial_end, dropout_trials = dropout_trials)
+                trial_end = trial_end, dropout_trials = dropout_trials, postime = postime)
             save_code = True
         except Exception:
             save_code = False
