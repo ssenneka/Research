@@ -186,7 +186,7 @@ class training(Processor):
             ##This section of code is outside of any if statements because 
             ##these values are needed for the following trial phases 
             self.pos.append(pose)
-            self.postime.append([pose[0],time.time()])
+            self.postime.append([pose[0][0],time.time()])
             nt_dists = self.distance(pose[0],self.curr_targ[0])
             ht_dists = self.distance(pose[1],self.curr_targ[0])
             nh_dist = self.distance(pose[0],pose[1])[2]
@@ -218,6 +218,7 @@ class training(Processor):
                     if self.drop:
                         self.dropout_trials.append([self.trial_num + 1, 1])
                     byte = self.leo.readline()
+                    npt = 0
                     print(byte)
                     if byte == b'P':
                         npt = time.time()
@@ -229,7 +230,7 @@ class training(Processor):
                         print("Trials Completed: ", self.trial_num)
                         print("Successes: ", self.successes)
                         time.sleep(5)
-                if time.time() - self.trial_end[len(self.trial_end)-1] > 20:
+                if (time.time() - self.trial_end[len(self.trial_end)-1] > 20) and not self.trial_init:
                     self.trial_init = True
                     self.success = False
                     self.reward_off()
