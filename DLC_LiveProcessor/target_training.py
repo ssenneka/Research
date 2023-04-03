@@ -172,12 +172,9 @@ class training(Processor):
             if self.trial_init:                                                    #3 - Left Ear
                 self.drop = random.choice(self.dropout)            
                 self.curr_targ = random.choice(self.target_list)                   #4 - Right Hip
+                self.target_led_on(self.curr_targ[1])
                 self.targets.append(self.curr_targ[0])                             #5 - Left Hip
                 print("Target: ",self.curr_targ)                                   #6 - Tail Base
-                if not self.drop:
-                    self.target_led_on(self.curr_targ[1])
-                if self.drop:
-                    self.led_board_off()
                 self.trial_init = False
                 self.trial_ip = True
                 self.success = False
@@ -198,7 +195,7 @@ class training(Processor):
             print('distance:', ht_dists[2])
             ##Trial in progress phase               
             if self.trial_ip:      
-                if ((time.time()-self.last_tone) >= .099):
+                if ((time.time()-self.last_tone) >= .099) and not self.drop:
                     self.play_sound(deg_angle, ht_dists[2])
                     self.last_tone = time.time()
                 if (ht_dists[2] <= 65) and (time.time()-self.trial_start[len(self.trial_start)-1] >= 1):
@@ -215,8 +212,6 @@ class training(Processor):
             ##Trial success phase
             if self.success:
                 if time.time() - self.trial_end[len(self.trial_end) - 1] <= 20:   
-                    if self.drop:
-                        self.dropout_trials.append([self.trial_num + 1, 1])
                     byte = self.leo.readline()
                     npt = 0
                     print(byte)
@@ -229,10 +224,14 @@ class training(Processor):
                         self.successes += 1
                         print("Trials Completed: ", self.trial_num)
                         print("Successes: ", self.successes)
+                        if self.drop:
+                            self.dropout_trials.append([self.trial_num + 1, 1])
                         time.sleep(5)
                 if (time.time() - self.trial_end[len(self.trial_end)-1] > 20) and not self.trial_init:
                     self.trial_init = True
                     self.success = False
+                    if self.drop:
+                            self.dropout_trials.append([self.trial_num + 1, 1])
                     self.reward_off()
                     self.trial_num += 1
                     self.successes += 1
