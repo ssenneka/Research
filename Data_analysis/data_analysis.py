@@ -34,4 +34,24 @@ plt.xlim(0, 720)
 plt.ylim(0,540)
 plt.grid()
 
-def 
+idx = 0
+ttime = []
+for i in trial_end:
+    itr = 0
+    for j in trial_start:
+        ttime.append([i-j, idx, itr])
+        itr += 1
+    idx += 1
+    
+ttime2 = []
+for i in ttime:
+    if i[0] > 0 and i[0] < 30:
+        ttime2.append(i)
+        
+i = 0
+while i < len(ttime2):
+    if ttime2[i][1] == ttime[i+1][1]:
+        ttime2.remove(ttime2[i])
+        print(i)
+    else:
+        i += 1
