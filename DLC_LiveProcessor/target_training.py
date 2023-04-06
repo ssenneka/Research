@@ -172,6 +172,7 @@ class training(Processor):
             if self.trial_init:                                                    #3 - Left Ear
                 self.drop = random.choice(self.dropout)            
                 self.curr_targ = random.choice(self.target_list)                   #4 - Right Hip
+                #if not self.drop:
                 self.target_led_on(self.curr_targ[1])
                 self.targets.append(self.curr_targ[0])                             #5 - Left Hip
                 print("Target: ",self.curr_targ)                                   #6 - Tail Base
@@ -187,9 +188,10 @@ class training(Processor):
             nt_dists = self.distance(pose[0],self.curr_targ[0])
             ht_dists = self.distance(pose[1],self.curr_targ[0])
             nh_dist = self.distance(pose[0],pose[1])[2]
-            if nh_dist == 0:
-                nh_dist = 5
-            pi_angle = math.acos((ht_dists[2]**2+nh_dist**2-nt_dists[2]**2)/(2*ht_dists[2]*nh_dist))
+            dist_calc = (ht_dists[2]**2+nh_dist**2-nt_dists[2]**2)/(2*ht_dists[2]*nh_dist)
+            if abs(dist_calc) > 1:
+                dist_calc = 1
+            pi_angle = math.acos(dist_calc)
             deg_angle = pi_angle *(180.0 / math.pi)      
             print('position', pose[1])            
             print('distance:', ht_dists[2])
