@@ -274,11 +274,14 @@ class training(Processor):
         dropout_trials = np.array(self.dropout_trials, dtype = 'object')
         pos = self.pos
         postime = self.postime
+        ttimes = trial_end - trial_start
+        ttime_avg = np.mean(ttimes)
         try:
             np.savez(
                 filename, pos = pos, trial_num = trial_num, successes  = successes,
                 targets = targets, nosepokes=nosepokes, trial_start = trial_start,
-                trial_end = trial_end, dropout_trials = dropout_trials, postime = postime)
+                trial_end = trial_end, dropout_trials = dropout_trials, 
+                postime = postime, ttimes = ttimes, ttime_avg = ttime_avg)
             save_code = True
         except Exception:
             save_code = False
