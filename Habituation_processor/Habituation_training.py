@@ -26,6 +26,7 @@ class Habituation(Processor):
         self.successes = 0 #number of successful trials
         self.reward_dispense = True
         self.start_times = []
+        self.end_times = []
         self.pos = []
         bits = 16
         channels = 2
@@ -44,6 +45,7 @@ class Habituation(Processor):
             buf[s][1] = int(round(max_sample*math.sin(2*math.pi*frequency_r*t)))
 
         self.sound = pygame.sndarray.make_sound(buf)
+        self.sound.set_volume(0.055)
 
         
     def close_serial(self):
@@ -54,8 +56,8 @@ class Habituation(Processor):
         self.leo.write(b"H")
         
     def rewardport_off(self):
-        self.led.reset_input_buffer()
-        self.led.write(b"L")
+        self.leo.reset_input_buffer()
+        self.leo.write(b"L")
 
     
 
@@ -79,16 +81,18 @@ class Habituation(Processor):
             self.pos.append(pose)
             if (self.reward_dispense == True) or ((time.time()-self.trial_start)%50 == 0):
                 self.sound.play(loops = 0)
+                self.start_times.append(time.time())
                 self.trial_start = time.time()
                 self.rewardport_on()
-                self.leo.reset_input_buffer()
-                byte = self.leo.readline()
-                print(byte)
-                if byte == b'P':
-                    self.nosepoke += 1
-                self.reward_dispense = False
-                self.start_times.append(self.trial_start)
                 
+                
+                self.reward_dispense = False
+            byte = self.leo.readline()
+            print(byte)
+            if byte == b'P':
+                self.nosepoke += 1
+                self.end_times.append(self.trial_start)
+
             if (time.time() - self.trial_start) >= 50:
                 self.rewardport_off()
                 self.reward_dispense = True
@@ -108,6 +112,8 @@ class Habituation(Processor):
             pos = np.array(self.pos)
             trial_num = np.array(self.trial_num)
             start_times = np.array(self.start_times)
+            end_times = np.array(self.end_times)
+            trial_lengths = np.array(end_times - start_times)
             nosepoke = np.array(self.nosepoke)
             try:
                 np.savez(
