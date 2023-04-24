@@ -84,11 +84,10 @@ class Habituation(Processor):
                 self.start_times.append(time.time())
                 self.trial_start = time.time()
                 self.rewardport_on()
-                
-                
                 self.reward_dispense = False
             byte = self.leo.readline()
             print(byte)
+            print("Time Elapsed: ", (time.time() - self.trial_start))
             if byte == b'P':
                 self.nosepoke += 1
                 self.end_times.append(self.trial_start)
@@ -97,6 +96,9 @@ class Habituation(Processor):
                 self.rewardport_off()
                 self.reward_dispense = True
                 self.trial_num += 1
+                print("Nosepokes: ", self.nosepoke)
+                print("Trials Completed: ",self.trial_num-1)
+                print("Rate: ", (self.nosepoke / (self.trial_num-1)))
                 time.sleep(10)
                 
             
@@ -113,11 +115,11 @@ class Habituation(Processor):
             trial_num = np.array(self.trial_num)
             start_times = np.array(self.start_times)
             end_times = np.array(self.end_times)
-            trial_lengths = np.array(end_times - start_times)
+
             nosepoke = np.array(self.nosepoke)
             try:
                 np.savez(
-                    filename, pos = pos, trial_num = trial_num, start_times = start_times, nosepoke = nosepoke
+                    filename, pos = pos, trial_num = trial_num, start_times = start_times, nosepoke = nosepoke, end_times = end_times
                 )
                 save_code = True
             except Exception:
