@@ -41,6 +41,7 @@ class training(Processor):
         self.nosepokes = 0                                                     #number of times reward was collected by nosepoking reward port
         self.pos = []                                                          #pose coordinates to save
         self.postime = []
+        self.sum_ttt = 0
         self.success = False                                                   #trial ended in success if true
         self.successes = 0                                                     #number of successful trials     
         self.targets = []                                                      #list of targets for each trial during session
@@ -51,19 +52,21 @@ class training(Processor):
         self.trial_start = []                                                  #Start times of each trial
         self.waiting = True                                                    #Waiting for recording to start if True
         self.zero = serial.Serial('COM11', baudrate, timeout = 0)              #Serial connection to Arduino Zero
-        self.target_list = [[[240,157], b'A'],                                 #list of targets
-                            [[240,275], b'B'],
-                            [[240,393], b'C'],
-                            [[357,155], b'D'],
-                            [[357,275], b'E'],
-                            [[360,393], b'F'],
-                            [[474,153], b'G'],
-                            [[477,272], b'H'],
-                            [[478,390], b'I']]  
-# [[219,152], b'A'], #list of targets for four target scenario
-# [[420,152], b'B'],
-# [[220,351], b'C'],
-# [[427,351], b'D']
+        self.target_list = [[[223,153], b'A'], #list of targets for four target scenario
+                           [[423,152], b'B'],
+                           [[225,355], b'C'],
+                           [[425,352], b'D']]
+                            
+                            # [[[240,157], b'A'],                                 #list of targets
+                            # [[240,275], b'B'],
+                            # [[240,393], b'C'],
+                            # [[357,155], b'D'],
+                            # [[357,275], b'E'],
+                            # [[360,393], b'F'],
+                            # [[474,153], b'G'],
+                            # [[477,272], b'H'],
+                            # [[478,390], b'I']]  
+# 
                                           
         ##
         elec = np.array([i for i in range(1, 13)])                             #array with length of the number of stimulating electrodes
@@ -143,9 +146,9 @@ class training(Processor):
         buf_r = np.zeros((n_samples,2), dtype = np.int16)
         max_sample = 2**(bits-1) - 1    
         if angle <= 180:
-            frequency = 13000 - 17*angle
+            frequency = 20000 - 55.555*angle
         if angle > 180:
-            frequency = 9040 + 17*(angle-180)
+            frequency = 10000 + 55.555*(angle-180)
         volume_r = .008+.00155*((max_dist - dist)/19.455)
         volume_l = .055-.00155*((max_dist - dist)/19.455)
         for s in range(n_samples):
@@ -170,7 +173,7 @@ class training(Processor):
         if kwargs['record']:                                                       #1 - Head Center
             ##Trial Initiation Phase                                              #2 - Right Ear
             if self.trial_init:                                                    #3 - Left Ear
-                self.drop = random.choice(self.dropout)            
+                #self.drop = random.choice(self.dropout)            
                 self.curr_targ = random.choice(self.target_list)                   #4 - Right Hip
                 #if not self.drop:
                 self.target_led_on(self.curr_targ[1])
@@ -200,7 +203,7 @@ class training(Processor):
                 if ((time.time()-self.last_tone) >= .099) and not self.drop:
                     self.play_sound(deg_angle, ht_dists[2])
                     self.last_tone = time.time()
-                if (ht_dists[2] <= 65) and (time.time()-self.trial_start[len(self.trial_start)-1] >= 1):
+                if (ht_dists[2] <= 90) and (time.time()-self.trial_start[len(self.trial_start)-1] >= 1):
                     self.trial_end.append(time.time())
                     self.trial_ip = False
                     self.success = True
@@ -227,7 +230,11 @@ class training(Processor):
                         print("Trials Completed: ", self.trial_num)
                         print("Successes: ", self.successes)
                         if self.drop:
-                            self.dropout_trials.append([self.trial_num + 1, 1])
+                            self.dropout_trials.append([self.trial_num, 1])
+                        self.sum_ttt += (self.trial_end[len(self.trial_end) - 1] - self.trial_start[len(self.trial_start) - 1])
+                        print("Success Rate ", self.successes/self.trial_num)
+                        print("Time taken: ", (self.trial_end[len(self.trial_end) - 1] - self.trial_start[len(self.trial_start)-1]))
+                        print("Average success Time: ", self.sum_ttt / self.successes)
                         time.sleep(5)
                 if (time.time() - self.trial_end[len(self.trial_end)-1] > 20) and not self.trial_init:
                     self.trial_init = True
@@ -239,6 +246,9 @@ class training(Processor):
                     self.successes += 1
                     print("Trials Completed: ", self.trial_num)
                     print("Successes: ", self.successes)
+                    print("Success Rate ", self.successes/self.trial_num)
+                    print("Time taken: ", (self.trial_end[len(self.trial_end) - 1] - self.trial_start[len(self.trial_start)-1]))
+                    print("Average success Time: ", self.sum_ttt / self.successes)
                     time.sleep(5)                                
             if self.fail:
                 if self.drop:
@@ -249,6 +259,8 @@ class training(Processor):
                 self.trial_num += 1
                 print('Trials Completed:', self.trial_num)
                 print("Successes: ", self.successes)
+                print("Success Rate: ", self.successes / self.trial_num)
+                print("Average Success Time: ", self.sum_ttt / self.successes)
                 time.sleep(5)
 
         return pose
@@ -275,9 +287,7 @@ class training(Processor):
         trial_end = np.array(self.trial_end)
         dropout_trials = np.array(self.dropout_trials, dtype = 'object')
         pos = self.pos
-        postime = self.postime
-        ttimes = trial_end - trial_start
-        ttime_avg = np.mean(ttimes)
+        postime = self.postime    
         try:
             np.savez(
                 filename, pos = pos, trial_num = trial_num, successes  = successes,
