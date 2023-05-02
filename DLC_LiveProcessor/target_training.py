@@ -52,21 +52,23 @@ class training(Processor):
         self.trial_start = []                                                  #Start times of each trial
         self.waiting = True                                                    #Waiting for recording to start if True
         self.zero = serial.Serial('COM11', baudrate, timeout = 0)              #Serial connection to Arduino Zero
-        self.target_list = [[[222,154], b'A'], #list of targets for four target scenario
-                           [[422,154], b'B'],
-                           [[222,355], b'C'],
-                           [[422,355], b'D']]
+        # self.target_list = [[[222,154], b'A'], #list of targets for four target scenario
+        #                    [[422,154], b'B'],
+        #                    [[222,355], b'C'],
+        #                    [[422,355], b'D']]
                             
-                            # [[[240,157], b'A'],                                 #list of targets
-                            # [[240,275], b'B'],
-                            # [[240,393], b'C'],
-                            # [[357,155], b'D'],
-                            # [[357,275], b'E'],
-                            # [[360,393], b'F'],
-                            # [[474,153], b'G'],
-                            # [[477,272], b'H'],
-                            # [[478,390], b'I']]  
-# 
+        self.target_list = [[[247,159], b'A'],                                 #list of targets
+                           [[247,278], b'B'],
+                           [[247, 395], b'C'],
+                           [[365,159], b'D'],
+                           [[365,278], b'E'],
+                           [[365,395], b'F'],
+                           [[480,159], b'G'],
+                           [[480,278], b'H'],
+                           [[480,395], b'I']]
+       
+        self.target_size = 41
+
                                           
         ##
         elec = np.array([i for i in range(1, 13)])                             #array with length of the number of stimulating electrodes
@@ -203,7 +205,7 @@ class training(Processor):
                 if ((time.time()-self.last_tone) >= .099) and not self.drop:
                     self.play_sound(deg_angle, ht_dists[2])
                     self.last_tone = time.time()
-                if (ht_dists[2] <= 90) and (time.time()-self.trial_start[len(self.trial_start)-1] >= 0.5):
+                if (ht_dists[2] <= self.target_size) and (time.time()-self.trial_start[len(self.trial_start)-1] >= 0.5):
                     self.trial_end.append(time.time())
                     self.trial_ip = False
                     self.success = True
@@ -260,7 +262,8 @@ class training(Processor):
                 print('Trials Completed:', self.trial_num)
                 print("Successes: ", self.successes)
                 print("Success Rate: ", self.successes / self.trial_num)
-                print("Average Success Time: ", self.sum_ttt / self.successes)
+                if self.successes > 0:
+                    print("Average Success Time: ", self.sum_ttt / self.successes)
                 time.sleep(5)
 
         return pose
@@ -301,7 +304,7 @@ class training(Processor):
         return save_code
     
 class Habituation(Processor):
-
+    
     def __init__(self, lik_thresh=0.5, baudrate = int(9600)):
     
         super().__init__()
@@ -415,3 +418,6 @@ class Habituation(Processor):
                 save_code = False
     
             return save_code
+        
+  
+
