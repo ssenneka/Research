@@ -18,6 +18,7 @@ import random
 from dlclive import Processor
 import math
 import pygame
+import xipppy as xp
 
 
 class training(Processor):
@@ -31,16 +32,19 @@ class training(Processor):
     def __init__(self, baudrate = int(9600)):  
         super().__init__()
         ##
-        self.curr_targ = []      
-        self.dropout = [True, False, False, False, False]                      #current target for mouse to reach for give trial
+        self.dropout_session = False
+        self.curr_targ = []
+        self.drop_audio = False
+        self.drop_visual = False
+        self.dropout = [1,2,0,0,0,0,0,0,0,0]                                   #current target for mouse to reach for give trial
         self.dropout_trials = []
         self.drop = False
         self.fail = False                                                      #trial ended in failure if true
         self.last_tone = time.time()                                           #last time a sound was played
-        self.leo = serial.Serial('COM9', baudrate, timeout = 0)                #Serial connection to Arduino Leonardo        
-        self.nosepokes = 0                                                     #number of times reward was collected by nosepoking reward port
-        self.pos = []                                                          #pose coordinates to save
-        self.postime = []
+        self.pos = []                                                          #pose coordinates to save\
+        self.pose_data = []
+        self.session_length = 60
+        self.session_start = time.time()
         self.sum_ttt = 0
         self.success = False                                                   #trial ended in success if true
         self.successes = 0                                                     #number of successful trials     
@@ -50,24 +54,25 @@ class training(Processor):
         self.trial_ip = False                                                  #trial is in progress if true
         self.trial_num = 0                                                     #Current trial number as well as total number of trials at the end
         self.trial_start = []                                                  #Start times of each trial
+        self.trial_data = []
         self.waiting = True                                                    #Waiting for recording to start if True
-        self.zero = serial.Serial('COM11', baudrate, timeout = 0)              #Serial connection to Arduino Zero
-        # self.target_list = [[[222,154], b'A'], #list of targets for four target scenario
-        #                    [[422,154], b'B'],
-        #                    [[222,355], b'C'],
-        #                    [[422,355], b'D']]
+        self.zero = serial.Serial('COM11', baudrate, timeout = 0)
+        # self.target_list = [[[268,189], b'A'], #list of targets for four target scenario
+        #                     [[467,186], b'B'],
+        #                     [[270,389], b'C'],
+        #                     [[470,387], b'D']]
                             
-        self.target_list = [[[247,159], b'A'],                                 #list of targets
-                           [[247,278], b'B'],
-                           [[247, 395], b'C'],
-                           [[365,159], b'D'],
-                           [[365,278], b'E'],
-                           [[365,395], b'F'],
-                           [[480,159], b'G'],
-                           [[480,278], b'H'],
-                           [[480,395], b'I']]
+        self.target_list = [[[214,141], b'A'],                                 #list of targets
+                            [[214,254], b'B'],
+                            [[216,368], b'C'],
+                            [[328,140], b'D'],
+                            [[329,254], b'E'],
+                            [[329,367], b'F'],
+                            [[441,141], b'G'],
+                            [[444,255], b'H'],
+                            [[441,366], b'I']]
        
-        self.target_size = 41
+        self.target_size = 32
 
                                           
         ##
@@ -102,22 +107,52 @@ class training(Processor):
         self.channel_r = pygame.mixer.Channel(1)                               #right channel of the pygame mixer
         self.reward_tone = pygame.sndarray.make_sound(buf)                     #reward tone
         self.reward_tone.set_volume(.055)                                      #volume for reward tone
+        # with xp.xipppy_open(use_tcp=True):
+        #     self.elecchans = xp.list_elec('stim')
+        
         print("Setup Complete.")
         
-        
+    # def biphasic_stim(elec, amp, frequency, repeats):
+    #     seq0 = []
+    #     frequency_len = len(frequency)
+    #     elec_len = len(elec)
+    #     repeat_len = len(repeats)
+    #     with xp.xipppy_open(use_tcp=True):
+           
+    #         if xp.stim_get_res(0) <= 1: #change stim res
+    #             xp.stim_enable_set(False)
+    #             #stim_set_res(elec,res)
+    #         xp.stim_enable_set(True)
+    #         phase_length = 6
+    #         interphase_length = 8
+    #         interphase_amp = 0
+    #         pol_phaseone = 1
+    #         pol_phasetwo = -1
+    #         pol_interphase = pol_phaseone
+    #         cathseg=xp.StimSegment(phase_length,amp,pol_phaseone)
+    #         ipi=xp.StimSegment(interphase_length, interphase_amp, pol_interphase)                       
+    #         anseg=xp.StimSegment(phase_length,amp, pol_phasetwo)                       
+    #         for i in range(0,len(frequency)):
+    #             if frequency[i] == 0:
+    #                 frequency[i] = 1
+    #             period = round(1 / frequency[i] * 10**6 / 33.33)
+    #             seq0.append(xp.StimSeq(elec[i], period, repeats[i], cathseg, ipi, anseg))#create overall sequence header defining electrode, period, repeats
+    #     #This will stimulate on electrode 1 at 30 hz for one second (1000 ms)
+    #         xp.StimSeq.send_stim_seqs(seq0) #send sequence to NIP
+    #         time.sleep(0.0001)
+   
     def close_serial(self):                                                    #Closes all serial connections
-        self.leo.close()
         self.zero.close()
        
         
     def reward_on(self):                                                       #Turns on led reward port
-        self.leo.reset_input_buffer()
-        self.leo.write(b"H")
+        self.zero.reset_input_buffer()
+        self.zero.write(b"R")
   
         
     def reward_off(self):                                                      #Turns off reward port led and reward availability
-        self.leo.reset_input_buffer()
-        self.leo.write(b"L")
+        self.zero.reset_input_buffer()
+        self.zero.write(b"L")
     
     
     def target_led_on(self, target):                                           #Turns on the desired area of LED board underneath cage floor
@@ -136,13 +171,16 @@ class training(Processor):
         dist = math.sqrt((x_dist)**2+(y_dist)**2)
         distances = [x_dist, y_dist, dist]
         return distances
- 
+
+    def pose_parse(self, pose, trial_num):
+        data = np.concatenate(([trial_num],pose[0],pose[1],pose[2],pose[3],pose[4],pose[5],pose[6]))
+        return data
     
     def play_sound(self, angle, dist):                                         #Takes angle and distance and creates and plays the desired sound for each channel
         bits = 16
         duration = .1
         sample_rate = 44100
-        max_dist = 590
+        max_dist = 550
         n_samples = int(round(duration*sample_rate))
         buf_l = np.zeros((n_samples,2), dtype = np.int16)
         buf_r = np.zeros((n_samples,2), dtype = np.int16)
@@ -174,11 +212,12 @@ class training(Processor):
             self.waiting = False                                                   #0 - Nose
         if kwargs['record']:                                                       #1 - Head Center
             ##Trial Initiation Phase                                              #2 - Right Ear
-            if self.trial_init:                                                    #3 - Left Ear
-                #self.drop = random.choice(self.dropout)            
+            if self.trial_init:
+                if self.dropout_session:                                                    #3 - Left Ear
+                    self.drop = random.choice(self.dropout)            
                 self.curr_targ = random.choice(self.target_list)                   #4 - Right Hip
-                #if not self.drop:
-                self.target_led_on(self.curr_targ[1])
+                if self.drop != 1:
+                    self.target_led_on(self.curr_targ[1])
                 self.targets.append(self.curr_targ[0])                             #5 - Left Hip
                 print("Target: ",self.curr_targ)                                   #6 - Tail Base
                 self.trial_init = False
@@ -189,7 +228,6 @@ class training(Processor):
             ##This section of code is outside of any if statements because 
             ##these values are needed for the following trial phases 
             self.pos.append(pose)
-            self.postime.append([pose[0][0],time.time()])
             nt_dists = self.distance(pose[0],self.curr_targ[0])
             ht_dists = self.distance(pose[1],self.curr_targ[0])
             nh_dist = self.distance(pose[0],pose[1])[2]
@@ -201,10 +239,15 @@ class training(Processor):
             print('position', pose[1])            
             print('distance:', ht_dists[2])
             ##Trial in progress phase               
-            if self.trial_ip:      
-                if ((time.time()-self.last_tone) >= .099) and not self.drop:
+            if self.trial_ip:
+                poses = pose
+                self.pose_data.append(self.pose_parse(poses,self.trial_num))
+                if (time.time()-self.last_tone) >= .099 and self.drop != 2:
                     self.play_sound(deg_angle, ht_dists[2])
                     self.last_tone = time.time()
+                    # frequency = [self.TC[0:8,deg_angle],self.TC[8:16,deg_angle]]
+                    # repeats = frequency / 10
+                    # self.biphasic_stim(10,frequency,repeats)
                 if (ht_dists[2] <= self.target_size) and (time.time()-self.trial_start[len(self.trial_start)-1] >= 0.5):
                     self.trial_end.append(time.time())
                     self.trial_ip = False
@@ -212,49 +255,44 @@ class training(Processor):
                     self.led_board_off()
                     self.reward_on()
                     self.reward_tone.play(loops = 0)
-                if (time.time()-self.trial_start[len(self.trial_start)-1] >= 30) and self.success == False:
+                if (time.time()-self.trial_start[len(self.trial_start)-1] >= 18) and self.success == False:
                     self.fail = True 
                     self.trial_end.append(time.time())
                     
+                    
             ##Trial success phase
             if self.success:
-                if time.time() - self.trial_end[len(self.trial_end) - 1] <= 20:   
-                    byte = self.leo.readline()
-                    npt = 0
-                    print(byte)
-                    if byte == b'P':
-                        npt = time.time()
-                        self.trial_init = True
-                        self.nosepokes += 1
-                        self.success = False
-                        self.trial_num += 1
-                        self.successes += 1
-                        print("Trials Completed: ", self.trial_num)
-                        print("Successes: ", self.successes)
-                        if self.drop:
-                            self.dropout_trials.append([self.trial_num, 1])
-                        self.sum_ttt += (self.trial_end[len(self.trial_end) - 1] - self.trial_start[len(self.trial_start) - 1])
-                        print("Success Rate ", self.successes/self.trial_num)
-                        print("Time taken: ", (self.trial_end[len(self.trial_end) - 1] - self.trial_start[len(self.trial_start)-1]))
-                        print("Average success Time: ", self.sum_ttt / self.successes)
-                        time.sleep(5)
-                if (time.time() - self.trial_end[len(self.trial_end)-1] > 20) and not self.trial_init:
+                byte = self.zero.readline()
+                print(byte)
+                if byte == b'P':
                     self.trial_init = True
                     self.success = False
-                    if self.drop:
-                            self.dropout_trials.append([self.trial_num + 1, 1])
-                    self.reward_off()
                     self.trial_num += 1
                     self.successes += 1
                     print("Trials Completed: ", self.trial_num)
                     print("Successes: ", self.successes)
+                    if self.drop == 2:
+                        self.trial_data.append([self.trial_end[len(self.trial_end)-1]-self.trial_start[len(self.trial_start) -1],self.curr_targ, 1, 'vis'])
+                    if self.drop == 1:
+                        self.trial_data.append([self.trial_end[len(self.trial_end)-1]-self.trial_start[len(self.trial_start) -1],self.curr_targ, 1, 'aud'])
+                    else:
+                        self.trial_data.append([self.trial_end[len(self.trial_end)-1]-self.trial_start[len(self.trial_start) -1],self.curr_targ, 1, 'False'])
+
+                    self.sum_ttt += (self.trial_end[len(self.trial_end) - 1] - self.trial_start[len(self.trial_start) - 1])
                     print("Success Rate ", self.successes/self.trial_num)
                     print("Time taken: ", (self.trial_end[len(self.trial_end) - 1] - self.trial_start[len(self.trial_start)-1]))
                     print("Average success Time: ", self.sum_ttt / self.successes)
-                    time.sleep(5)                                
+                    time.sleep(5)
+                      
             if self.fail:
-                if self.drop:
-                    self.dropout_trials.append([self.trial_num+1, 0])
+                
+                if self.drop == 2:
+                    self.trial_data.append([self.trial_end[len(self.trial_end)-1]-self.trial_start[len(self.trial_start) -1],self.curr_targ, 0, 'vis'])
+                elif self.drop == 1:
+                    self.trial_data.append([self.trial_end[len(self.trial_end)-1]-self.trial_start[len(self.trial_start) -1],self.curr_targ, 0, 'aud'])
+                else:
+                    self.trial_data.append([self.trial_end[len(self.trial_end)-1]-self.trial_start[len(self.trial_start) -1],self.curr_targ, 0, 'False'])
+
                 self.reward_off()
                 self.led_board_off()
                 self.trial_init = True
@@ -265,38 +303,32 @@ class training(Processor):
                 if self.successes > 0:
                     print("Average Success Time: ", self.sum_ttt / self.successes)
                 time.sleep(5)
+                
+
 
         return pose
-
-   
-
-
-
-
-
 
     def save(self, filename):
 
         ### save stim on and stim off times
         self.led_board_off()
         self.reward_off()
-        self.close_serial()
         filename += ".npy"
         trial_num = np.array(self.trial_num)
         successes = np.array(self.successes)
         targets = np.array(self.targets)
-        nosepokes = np.array(self.nosepokes)
         trial_start = np.array(self.trial_start)
         trial_end = np.array(self.trial_end)
         dropout_trials = np.array(self.dropout_trials, dtype = 'object')
         pos = self.pos
-        postime = self.postime    
+        pose_data = np.array(self.pose_data)
+        trial_data = np.array(self.trial_data, dtype = 'object')
         try:
             np.savez(
                 filename, pos = pos, trial_num = trial_num, successes  = successes,
-                targets = targets, nosepokes=nosepokes, trial_start = trial_start,
+                targets = targets, trial_start = trial_start,
                 trial_end = trial_end, dropout_trials = dropout_trials, 
-                postime = postime)
+                pose_data = pose_data, trial_data = trial_data)
             save_code = True
         except Exception:
             save_code = False
@@ -369,7 +401,8 @@ class Habituation(Processor):
     def process(self, pose, **kwargs):
         #print(pose[1][0],pose[1][1])
         if kwargs['record']:
-            print(pose[1])
+            print(pose)
+            print(len(pose))
             self.pos.append(pose)
             if (self.reward_dispense == True) or ((time.time()-self.trial_start)%50 == 0):
                 self.sound.play(loops = 0)
@@ -384,14 +417,14 @@ class Habituation(Processor):
                 self.nosepoke += 1
                 self.end_times.append(self.trial_start)
 
-            if (time.time() - self.trial_start) >= 50:
+            if (time.time() - self.trial_start) >= 25:
                 self.rewardport_off()
                 self.reward_dispense = True
                 self.trial_num += 1
                 print("Nosepokes: ", self.nosepoke)
                 print("Trials Completed: ",self.trial_num-1)
                 print("Rate: ", (self.nosepoke / (self.trial_num-1)))
-                time.sleep(10)
+                time.sleep(5)
                 
             
 
