@@ -63,4 +63,8 @@ void loop() {
   {
     matrix.fillRect(0,0,32,32, matrix.Color333(0,0,0));
   }
+  if (incomingbyte == 'L')
+  {
+    matrix.fillRect(0,0,32,32,matrix.Color333(1,1,1));
+  }
 }

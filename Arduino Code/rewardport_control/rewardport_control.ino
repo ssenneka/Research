@@ -4,11 +4,13 @@ int counter = 0;
 int SolePin = 6;
 #define LEDPIN 13
 #define SENSORPIN A0
+#define microphone A1
 int VALID = 0;
 int dispt = 25;
 unsigned long CurrentTime = 0;
 unsigned long TimeDrink = 0;
 int SensorState = 0;
+int microphone_level = 0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -17,6 +19,7 @@ pinMode(SpeakerPin,OUTPUT);
 pinMode(SolePin, OUTPUT);
 pinMode(LEDPIN, OUTPUT);
 pinMode(SENSORPIN, INPUT);
+pinMode(microphone, INPUT);
 digitalWrite(SENSORPIN, HIGH);
 digitalWrite(SolePin, LOW);
 
@@ -29,8 +32,7 @@ void loop() {
   CurrentTime = millis();
 
   SensorState = analogRead(SENSORPIN);
-  //Serial.println(SensorState);
-
+  Serial.println(SensorState);
     incomingByte = Serial.read();
     if (incomingByte == 'H') 
     {
