@@ -1,0 +1,96 @@
+    # Project definitions (do not edit)
+Task: NSFDEMO2
+scorer: Sam
+date: Jul7
+multianimalproject: false
+identity:
+
+    # Project path (change when moving around)
+project_path: C:\Users\mcmadmx\Documents\SJS Mouse Stimulation Research-2022\NSFDEMO2-Sam-2023-07-07
+
+    # Annotation data set configuration (and individual video cropping parameters)
+video_sets:
+  C:\Users\mcmadmx\Documents\SJS Mouse Stimulation Research-2022\WEBCAM_Sam_2023-07-07_1_VIDEO.avi:
+    crop: 0, 640, 0, 480
+  C:\Users\mcmadmx\Documents\SJS Mouse Stimulation Research-2022\WEBCAM_t_2023-07-07_1_VIDEO.avi:
+    crop: 0, 640, 0, 480
+bodyparts:
+- head
+- neck
+- left shoulder
+- left elbow
+- left wrist
+- left hand
+- right shoulder
+- right elbow
+- right wrist
+- right hand
+- thumb
+- pointer
+- middle
+- ring
+- pinkie
+start: 0
+stop: 1
+numframes2pick: 150
+
+    # Plotting configuration
+skeleton:
+- - head
+  - neck
+- - neck
+  - right shoulder
+- - neck
+  - left shoulder
+- - neck
+  - right shoulder
+- - right shoulder
+  - right elbow
+- - right elbow
+  - right wrist
+- - right wrist
+  - right hand
+- - right hand
+  - thumb
+- - right hand
+  - pointer
+- - right hand
+  - middle
+- - right hand
+  - ring
+- - right hand
+  - pinkie
+- - left shoulder
+  - left elbow
+- - left elbow
+  - left wrist
+- - left wrist
+  - left hand
+skeleton_color: black
+pcutoff: 0.95
+dotsize: 12
+alphavalue: 0.7
+colormap: rainbow
+
+    # Training,Evaluation and Analysis configuration
+TrainingFraction:
+- 0.95
+iteration: 0
+default_net_type: resnet_50
+default_augmenter: default
+snapshotindex: -1
+batch_size: 8
+
+    # Cropping Parameters (for analysis and outlier frame detection)
+cropping: false
+    #if cropping is true for analysis, then set the values here:
+x1: 0
+x2: 640
+y1: 277
+y2: 624
+
+    # Refinement configuration (parameters from annotation dataset configuration also relevant in this stage)
+corner2move2:
+- 50
+- 50
+move2corner: true
